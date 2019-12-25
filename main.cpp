@@ -154,13 +154,13 @@ double aposterior_error_estimate(const std::vector <std::vector <double >>& a_ma
 
 int normalizing_vector(std::vector<double>& main_vector){
     int ind = 0;
-    double y_p = std::abs(main_vector[0]);
-    for(int i = 0 ; i < main_vector.size(); ++i)
-        if (std::abs(main_vector[i]) > y_p) {
+    double y_p = main_vector[0];
+    for(int i = 1 ; i < main_vector.size(); ++i)
+        if (std::abs(main_vector[i]) > std::abs(y_p)) {
             ind = i;
-            y_p = std::abs(main_vector[i]);
+            y_p = main_vector[i];
         }
-    for(auto el: main_vector)
+    for(auto& el: main_vector)
         el /= y_p;
     return ind;
 }
@@ -168,9 +168,10 @@ int normalizing_vector(std::vector<double>& main_vector){
 
 double exponent_method(std::vector<std::vector<double>> a_matrix, const std::vector<double>& main_vector, double eps){
     std::vector<double> new_vector = main_vector;
-    int p_ind = normalizing_vector(new_vector), iterations = 0;
+    int p_ind, iterations = 0;
     double lambda;
     do {
+        p_ind = normalizing_vector(new_vector);
         iterations++;
         std::vector<double> temp_vector(main_vector.size(), 0);
         for (int i = 0; i < main_vector.size(); ++i) {
@@ -193,10 +194,11 @@ double exponent_method(std::vector<std::vector<double>> a_matrix, const std::vec
 
 double scalar_method(std::vector<std::vector<double>> a_matrix, const std::vector<double>& main_vector, double eps){
     std::vector<double> new_vector = main_vector;
-    int p_ind = normalizing_vector(new_vector), iterations = 0;
+    int p_ind, iterations = 0;
     double lambda;
     int n = new_vector.size();
     do {
+        p_ind = normalizing_vector(new_vector);
         iterations++;
         std::vector<double> temp_vector(n, 0);
         for (int i = 0; i < n; ++i) {
@@ -211,9 +213,10 @@ double scalar_method(std::vector<std::vector<double>> a_matrix, const std::vecto
         for (int i = 0; i < n; ++i) {
             denominator += pow(new_vector[i], 2);
         }
+        new_vector = temp_vector;
         lambda = numerator/denominator;
     }while(aposterior_error_estimate(a_matrix, new_vector, lambda) >= eps);
-    std::cout << "Number of iterations for exponent method is: " << iterations << std::endl;
+    std::cout << "Number of iterations for scalar method is: " << iterations << std::endl;
     return lambda;
 }
 
@@ -225,7 +228,6 @@ double spectr_board(double lambda, std::vector<std::vector<double> > a_matrix, d
     for (int i = 0; i < n; ++i) {
             b_matrix[i][i] -= lambda;
     }
-    //std::vector<double> begin_vector = {};
     board = exponent_method(b_matrix, a_matrix[0], eps);
     return board + lambda;
 }
@@ -334,18 +336,22 @@ int main() {
             begin_vector[i] += (n - j) * x_matrix[i][j];
         }
     }
+    std::cout << "Begin vector is: ";
+    for(auto el : begin_vector)
+        std::cout << el << " ";
+    std::cout << std::endl;
     std::cout << "Enter new epsilon for finding max main number by exponent method: "; std::cin >> eps;
     double lambda = exponent_method(a_matrix, begin_vector, eps);
     std::cout << "Maximum for abs in main numbers founded by exp method is: " << lambda << std::endl;
-//    std::cout << "Enter new epsilon for finding max main number by scalar method: "; std::cin >> eps;
-//    lambda = scalar_method(a_matrix, begin_vector, eps);
-//    std::cout << "Maximum for abs in main numbers founded by scalar method is: " << lambda << std::endl;
-//    std::cout << "Enter new epsilon for finding opposite spectre board using exponent method: "; std::cin >> eps;
-//    lambda = spectr_board(lambda, a_matrix, eps);
-//    std::cout << "Minimum for abs in main numbers founded by opposite board spectre is: " << lambda << std::endl;
-//    std::cout << "Enter new epsilon for main number clarification using Wilandt method: "; std::cin >> eps;
-//    lambda = wilandt_method(main_nums_matrix[2][2], a_matrix, eps);
-//    std::cout << "Your clarified lambda_3 value by Wilandt's method: " << lambda << std::endl;
+    std::cout << "Enter new epsilon for finding max main number by scalar method: "; std::cin >> eps;
+    lambda = scalar_method(a_matrix, begin_vector, eps);
+    std::cout << "Maximum for abs in main numbers founded by scalar method is: " << lambda << std::endl;
+    std::cout << "Enter new epsilon for finding opposite spectre board using exponent method: "; std::cin >> eps;
+    lambda = spectr_board(lambda, a_matrix, eps);
+    std::cout << "Opposite for main numbers founded by opposite board spectre is: " << lambda << std::endl;
+    std::cout << "Enter new epsilon for main number clarification using Wilandt method: "; std::cin >> eps;
+    lambda = wilandt_method(main_nums_matrix[2][2], a_matrix, eps);
+    std::cout << "Your clarified lambda_3 value by Wilandt's method: " << lambda << std::endl;
     file.close();
     return 0;
 }
