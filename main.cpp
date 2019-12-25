@@ -9,8 +9,8 @@ template <typename T> int sgn(T);
 void recount(std::vector<std::vector<double>>&, int, int);
 std::vector<std::vector<double>>  main_nums(int, const std::vector<std::vector<double>>&, double);
 std::vector<std::vector<double>> main_vectors(int, const std::vector<std::vector<double>>&, double);
-double norm_second(std::vector<double>);
-double aposterior_error_estimate(std::vector <std::vector <double >>, std::vector <double>, double);
+double norm_second(const std::vector<double>&);
+double aposterior_error_estimate(const std::vector <std::vector <double >>&, std::vector <double>, double);
 int normalizing_vector(std::vector<double>&);
 double exponent_method(std::vector<std::vector<double>>, const std::vector<double>&, double);
 double scalar_method(std::vector<std::vector<double>>, const std::vector<double>&, double);
@@ -128,14 +128,14 @@ std::vector<std::vector<double>> main_vectors(int size, const std::vector<std::v
     return x_matrix;
 }
 
-double norm_second(std::vector<double> vect){
+double norm_second(const std::vector<double>& vect){
     double sum = 0;
-    for(int i = 0; i < vect.size(); ++i)
-        sum += pow(vect[i], 2);
+    for(auto el : vect)
+        sum += pow(el, 2);
     return sqrt(sum);
 }
 
-double aposterior_error_estimate(std::vector <std::vector <double >> a_matrix, std::vector <double> main_vect, double lambda){
+double aposterior_error_estimate(const std::vector <std::vector <double >>& a_matrix, std::vector <double> main_vect, double lambda){
     int n = main_vect.size();
     std::vector<double> matr_to_vect(n), num_to_vect(n);       //for formula ||A*Y - lambda*Y||_2, where norm is second Gelder's norm, A - matrix, Y - approximation
                                                                  //to main vector , lambda - approximation to main number
@@ -168,9 +168,10 @@ int normalizing_vector(std::vector<double>& main_vector){
 
 double exponent_method(std::vector<std::vector<double>> a_matrix, const std::vector<double>& main_vector, double eps){
     std::vector<double> new_vector = main_vector;
-    int p_ind = normalizing_vector(new_vector);
+    int p_ind = normalizing_vector(new_vector), iterations = 0;
     double lambda;
     do {
+        iterations++;
         std::vector<double> temp_vector(main_vector.size(), 0);
         for (int i = 0; i < main_vector.size(); ++i) {
             for (int j = 0; j < main_vector.size(); ++j) {
@@ -179,17 +180,24 @@ double exponent_method(std::vector<std::vector<double>> a_matrix, const std::vec
         }
         new_vector = temp_vector;
         lambda = new_vector[p_ind];
-    }while(aposterior_error_estimate(a_matrix, main_vector, lambda) >= eps);
+    }while(aposterior_error_estimate(a_matrix, new_vector, lambda) >= eps);
+    std::cout << "Number of iterations for exponent method is: " << iterations << std::endl;
+    std::cout << "Main vector for founded so far main number is: \n";
+    for(auto el: new_vector){
+        std::cout << el << " ";
+    }
+    std::cout << std::endl;
     return lambda;
 }
 
 
 double scalar_method(std::vector<std::vector<double>> a_matrix, const std::vector<double>& main_vector, double eps){
     std::vector<double> new_vector = main_vector;
-    int p_ind = normalizing_vector(new_vector);
+    int p_ind = normalizing_vector(new_vector), iterations = 0;
     double lambda;
     int n = new_vector.size();
     do {
+        iterations++;
         std::vector<double> temp_vector(n, 0);
         for (int i = 0; i < n; ++i) {
             for (int j = 0; j < n; ++j) {
@@ -204,25 +212,22 @@ double scalar_method(std::vector<std::vector<double>> a_matrix, const std::vecto
             denominator += pow(new_vector[i], 2);
         }
         lambda = numerator/denominator;
-    }while(aposterior_error_estimate(a_matrix, main_vector, lambda) >= eps);
+    }while(aposterior_error_estimate(a_matrix, new_vector, lambda) >= eps);
+    std::cout << "Number of iterations for exponent method is: " << iterations << std::endl;
     return lambda;
 }
 
 
 double spectr_board(double lambda, std::vector<std::vector<double> > a_matrix, double eps){
-    int n = a_matrix[0].size();
+    int n = a_matrix[0].size();     //finding opposite board of a spectre - in our case it's minimal number of matrix A
     std::vector<std::vector<double> > b_matrix = a_matrix;
-    double some_shit_that_we_are_looking_for = 0;
+    double board;
     for (int i = 0; i < n; ++i) {
             b_matrix[i][i] -= lambda;
     }
-    if(lambda > 0) {
-        some_shit_that_we_are_looking_for = exponent_method(b_matrix, a_matrix[0], eps);        //TODO FUCKING DO THIS, main vector here put wrong
-    }
-    else{
-        some_shit_that_we_are_looking_for = exponent_method(b_matrix, a_matrix[0], eps);        //TODO SAME SHIT
-    }
-    return some_shit_that_we_are_looking_for + lambda;
+    //std::vector<double> begin_vector = {};
+    board = exponent_method(b_matrix, a_matrix[0], eps);
+    return board + lambda;
 }
 
 std::vector<std::vector<double>> inverse(std::vector<std::vector<double>> a) {
@@ -235,9 +240,9 @@ std::vector<std::vector<double>> inverse(std::vector<std::vector<double>> a) {
         int row = i;
         double mx = a[i][i];
         for(int k = i + 1; k < n; k++){
-            if (abs(a[k][i]) > mx){
+            if (std::abs(a[k][i]) > mx){
                 row = k;
-                mx = abs(a[k][i]);
+                mx = std::abs(a[k][i]);
             }
         }
         if (row != i) {
@@ -267,17 +272,18 @@ std::vector<std::vector<double>> inverse(std::vector<std::vector<double>> a) {
     return ans;
 }
 double wilandt_method(double lambda, std::vector<std::vector<double>> a_matrix, double eps){
-    double lambda_approx = lambda;
+    double lambda_approx = lambda, lambda_approx_new = lambda_approx;
     int n = a_matrix[0].size();
-    while(std::abs(lambda - lambda_approx) >= eps){
+    do {
+        lambda_approx = lambda_approx_new;
         std::vector<std::vector<double> > w_matrix = a_matrix;
         for (int i = 0; i < n; ++i) {
             w_matrix[i][i] -= lambda_approx;
         }
         double mu = scalar_method(inverse(w_matrix), a_matrix[0], eps * pow(10, -3));
-        lambda_approx += 1/mu;
-    }
-    return lambda_approx;
+        lambda_approx_new += 1/mu;
+    } while(std::abs(lambda_approx_new - lambda_approx) >= eps);
+    return lambda_approx_new;
 }
 
 int main() {
@@ -322,6 +328,24 @@ int main() {
         }
         std::cout << std::endl;
     }
+    std::vector<double> begin_vector(n);
+    for(int i = 0; i < n; ++i){
+        for(int j = 0; j < n; ++j) {
+            begin_vector[i] += (n - j) * x_matrix[i][j];
+        }
+    }
+    std::cout << "Enter new epsilon for finding max main number by exponent method: "; std::cin >> eps;
+    double lambda = exponent_method(a_matrix, begin_vector, eps);
+    std::cout << "Maximum for abs in main numbers founded by exp method is: " << lambda << std::endl;
+//    std::cout << "Enter new epsilon for finding max main number by scalar method: "; std::cin >> eps;
+//    lambda = scalar_method(a_matrix, begin_vector, eps);
+//    std::cout << "Maximum for abs in main numbers founded by scalar method is: " << lambda << std::endl;
+//    std::cout << "Enter new epsilon for finding opposite spectre board using exponent method: "; std::cin >> eps;
+//    lambda = spectr_board(lambda, a_matrix, eps);
+//    std::cout << "Minimum for abs in main numbers founded by opposite board spectre is: " << lambda << std::endl;
+//    std::cout << "Enter new epsilon for main number clarification using Wilandt method: "; std::cin >> eps;
+//    lambda = wilandt_method(main_nums_matrix[2][2], a_matrix, eps);
+//    std::cout << "Your clarified lambda_3 value by Wilandt's method: " << lambda << std::endl;
     file.close();
     return 0;
 }
